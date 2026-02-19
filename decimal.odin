@@ -35,50 +35,46 @@ to_f64 :: proc(d: Decimal) -> f64 {
 }
 
 // Convert Decimal to string.
-to_string :: proc(d: Decimal) -> string {
-	value_str := fmt.aprintf("%d", d.value)
+to_string :: proc(d: Decimal, allocator := context.allocator) -> string {
+	// Allocate a string builder.
+	builder := strings.builder_make(allocator)
 
-	if d.scale == 0 {
-		return value_str
+	// Handle negative sign.
+	if d.value < 0 {
+		strings.write_byte(&builder, '-')
 	}
 
-	defer delete(value_str)
+	// Temporarily allocate a string for the absolute value.
+	abs_value := abs(d.value)
+	abs_str := fmt.tprintf("%d", abs_value)
 
-	// Handle negative sign
-	is_negative := d.value < 0
-	abs_value_str := is_negative ? value_str[1:] : value_str
+	// If the scale is 0, then we can return the string as is.
+	if d.scale == 0 {
+		strings.write_string(&builder, abs_str)
+		return strings.to_string(builder)
+	}
 
+	// Get the len of the absolute value string.
+	str_len := len(abs_str)
 
-	str_len := len(abs_value_str)
-
-	// Case A: Need leading zeros (0.007)
 	if int(d.scale) >= str_len {
+		// Need leading zeros (0.007)
 		num_leading_zeros := int(d.scale) - str_len
-
-		builder := strings.builder_make()
-		defer strings.builder_destroy(&builder)
-
-		if is_negative {
-			strings.write_string(&builder, "-")
-		}
 		strings.write_string(&builder, "0.")
-		for i := 0; i < num_leading_zeros; i += 1 {
+
+		for _ in 0 ..< num_leading_zeros {
 			strings.write_byte(&builder, '0')
 		}
-		strings.write_string(&builder, abs_value_str)
-
-		return strings.clone(strings.to_string(builder))
+		strings.write_string(&builder, abs_str)
+	} else {
+		// Normal case (123.45)
+		decimal_pos := str_len - int(d.scale)
+		strings.write_string(&builder, abs_str[:decimal_pos])
+		strings.write_byte(&builder, '.')
+		strings.write_string(&builder, abs_str[decimal_pos:])
 	}
 
-	// Case B: Normal case (123.45)
-	decimal_pos := str_len - int(d.scale)
-	left_part := abs_value_str[:decimal_pos]
-	right_part := abs_value_str[decimal_pos:]
-
-	if is_negative {
-		return fmt.aprintf("-%s.%s", left_part, right_part)
-	}
-	return fmt.aprintf("%s.%s", left_part, right_part)
+	return strings.to_string(builder)
 }
 
 
