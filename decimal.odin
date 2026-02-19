@@ -84,47 +84,14 @@ to_string :: proc(d: Decimal) -> string {
 
 add :: proc(d1, d2: Decimal) -> Decimal {
 	// Align scale
-	scale := max(d1.scale, d2.scale)
-
-	// Scale up d1 if needed
-	value1 := d1.value
-	if d1.scale < scale {
-		scale_diff := scale - d1.scale
-		multiplier := pow10(scale_diff) // 10^scale_diff
-		value1 = d1.value * multiplier
-	}
-
-	// Scale up d2 if needed
-	value2 := d2.value
-	if d2.scale < scale {
-		scale_diff := scale - d2.scale
-		multiplier := pow10(scale_diff)
-		value2 = d2.value * multiplier
-	}
-
+	value1, value2, scale := align_scales(d1, d2)
 
 	return make_decimal(value1 + value2, scale)
 }
 
 subtract :: proc(d1, d2: Decimal) -> Decimal {
 	// Align scale
-	scale := max(d1.scale, d2.scale)
-
-	// Scale up d1 if needed
-	value1 := d1.value
-	if d1.scale < scale {
-		scale_diff := scale - d1.scale
-		multiplier := pow10(scale_diff) // 10^scale_diff
-		value1 = d1.value * multiplier
-	}
-
-	// Scale up d2 if needed
-	value2 := d2.value
-	if d2.scale < scale {
-		scale_diff := scale - d2.scale
-		multiplier := pow10(scale_diff)
-		value2 = d2.value * multiplier
-	}
+	value1, value2, scale := align_scales(d1, d2)
 
 	return make_decimal(value1 - value2, scale)
 }
@@ -190,3 +157,17 @@ pow10 :: proc(n: i8) -> i64 {
 	return result
 }
 
+// Align the scales of two Decimals.
+@(private)
+align_scales :: proc(d1, d2: Decimal) -> (value1: i64, value2: i64, scale: i8) {
+	// Get the larger scale
+	scale = max(d1.scale, d2.scale)
+
+	// Scale up d1 if needed
+	value1 = d1.value * pow10(scale - d1.scale)
+
+	// Scale up d2 if needed
+	value2 = d2.value * pow10(scale - d2.scale)
+
+	return
+}
