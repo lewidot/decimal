@@ -1,5 +1,17 @@
+// Package decimal provides fixed-point decimal arithmetic using an i64 backing value
+// with an i8 scale (digits after the decimal point).
+//
+// Precision limits:
+//   - i64 supports values up to ±9,223,372,036,854,775,807 (~9.2 × 10¹⁸)
+//   - Maximum useful scale is 18 (pow10(18) fits in i64, pow10(19) does not)
+//   - Arithmetic operations will panic on overflow rather than silently producing
+//     incorrect results
+//
+// For applications requiring arbitrary precision, consider using core:math/big.
+
 package decimal
 
+import "base:intrinsics"
 import "core:fmt"
 import "core:math"
 import "core:strings"
@@ -82,19 +94,19 @@ add :: proc(d1, d2: Decimal) -> Decimal {
 	// Align scale
 	value1, value2, scale := align_scales(d1, d2)
 
-	return make_decimal(value1 + value2, scale)
+	return make_decimal(checked_add(value1, value2), scale)
 }
 
 subtract :: proc(d1, d2: Decimal) -> Decimal {
 	// Align scale
 	value1, value2, scale := align_scales(d1, d2)
 
-	return make_decimal(value1 - value2, scale)
+	return make_decimal(checked_sub(value1, value2), scale)
 }
 
 multiply :: proc(d1, d2: Decimal) -> Decimal {
 	// Multiply values
-	value := d1.value * d2.value
+	value := checked_mul(d1.value, d2.value)
 
 	// Add scales
 	scale := d1.scale + d2.scale
@@ -107,13 +119,16 @@ divide :: proc(
 	precision: i8 = 2,
 	rounding: Rounding_Mode = Rounding_Mode.Half_Up,
 ) -> Decimal {
+	// Panic on division by zero
+	assert(d2.value != 0, "decimal: division by zero")
+
 	// Calculate scale adjustment
 	scale_adjustment := precision + d2.scale - d1.scale
 
 	// Scale up d1 value
 	d1_scaled: i64
 	if scale_adjustment >= 0 {
-		d1_scaled = d1.value * pow10(scale_adjustment)
+		d1_scaled = checked_mul(d1.value, pow10(scale_adjustment))
 	} else {
 		// Negative adjustment means divide
 		d1_scaled = d1.value / pow10(-scale_adjustment)
@@ -130,11 +145,7 @@ divide :: proc(
 		// Round up if remainder is at least half the divisor
 		// Use absolute values to handle negative numbers correctly
 		if abs(remainder) * 2 >= abs(d2.value) {
-			if quotient >= 0 {
-				quotient += 1
-			} else {
-				quotient -= 1
-			}
+			quotient += 1 if quotient >= 0 else -1
 		}
 
 	}
@@ -145,10 +156,10 @@ divide :: proc(
 // Calculate 10^n using integer multiplication.
 // Returns 10 to the power of n (e.g., pow10(3) = 1000).
 @(private)
-pow10 :: proc(n: i8) -> i64 {
+pow10 :: proc(n: i8, loc := #caller_location) -> i64 {
 	result: i64 = 1
 	for i: i8 = 0; i < n; i += 1 {
-		result *= 10
+		result = checked_mul(result, 10, loc)
 	}
 	return result
 }
@@ -160,10 +171,34 @@ align_scales :: proc(d1, d2: Decimal) -> (value1: i64, value2: i64, scale: i8) {
 	scale = max(d1.scale, d2.scale)
 
 	// Scale up d1 if needed
-	value1 = d1.value * pow10(scale - d1.scale)
+	value1 = checked_mul(d1.value, pow10(scale - d1.scale))
 
 	// Scale up d2 if needed
-	value2 = d2.value * pow10(scale - d2.scale)
+	value2 = checked_mul(d2.value, pow10(scale - d2.scale))
 
 	return
+}
+
+// Multiplication helper that checks for overflow and panics.
+@(private)
+checked_mul :: proc(a, b: i64, loc := #caller_location) -> i64 {
+	result, overflow := intrinsics.overflow_mul(a, b)
+	assert(!overflow, "decimal overflow: multiplication", loc)
+	return result
+}
+
+// Add helper that checks for overflow and panics.
+@(private)
+checked_add :: proc(a, b: i64, loc := #caller_location) -> i64 {
+	result, overflow := intrinsics.overflow_add(a, b)
+	assert(!overflow, "decimal overflow: addition", loc)
+	return result
+}
+
+// Subtract helper that checks for overflow and panics.
+@(private)
+checked_sub :: proc(a, b: i64, loc := #caller_location) -> i64 {
+	result, overflow := intrinsics.overflow_sub(a, b)
+	assert(!overflow, "decimal overflow: subtraction", loc)
+	return result
 }
