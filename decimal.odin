@@ -15,6 +15,12 @@ import "base:intrinsics"
 import "core:fmt"
 import "core:strings"
 
+Ordering :: enum {
+	Less,
+	Equal,
+	Greater,
+}
+
 Rounding_Mode :: enum {
 	Truncate, // Always round toward zero
 	Half_Up, // Round 0.5 away from zero
@@ -173,6 +179,14 @@ normalize :: proc(d: Decimal) -> Decimal {
 equal :: proc(d1, d2: Decimal) -> bool {
 	v1, v2, _ := align_scales(d1, d2)
 	return v1 == v2
+}
+
+
+compare :: proc(d1, d2: Decimal) -> Ordering {
+	v1, v2, _ := align_scales(d1, d2)
+	if v1 < v2 do return .Less
+	if v1 > v2 do return .Greater
+	return .Equal
 }
 
 // Calculate 10^n using integer multiplication.

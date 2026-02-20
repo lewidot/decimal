@@ -400,3 +400,42 @@ equal_tests :: proc(t: ^testing.T) {
 		)
 	}
 }
+
+@(test)
+compare_tests :: proc(t: ^testing.T) {
+	Test_Case :: struct {
+		name:     string,
+		d1_value: i64,
+		d1_scale: i8,
+		d2_value: i64,
+		d2_scale: i8,
+		expected: Ordering,
+	}
+
+	test_cases := []Test_Case {
+		{"equal_same_scale", 100, 2, 100, 2, .Equal},
+		{"equal_different_scale", 100, 2, 1, 0, .Equal},
+		{"less_than", 100, 2, 200, 2, .Less},
+		{"greater_than", 200, 2, 100, 2, .Greater},
+		{"different_scale_less", 1, 1, 2, 0, .Less},
+		{"negative_less", -500, 2, 100, 2, .Less},
+		{"negative_greater", -100, 2, -500, 2, .Greater},
+		{"negative_equal", -125, 1, -1250, 2, .Equal},
+		{"zero_vs_positive", 0, 0, 1, 2, .Less},
+		{"zero_vs_negative", 0, 0, -1, 2, .Greater},
+	}
+
+	for tc in test_cases {
+		d1 := make_decimal(tc.d1_value, tc.d1_scale)
+		d2 := make_decimal(tc.d2_value, tc.d2_scale)
+		result := compare(d1, d2)
+		testing.expectf(
+			t,
+			result == tc.expected,
+			"[%s] expected %v, got %v",
+			tc.name,
+			tc.expected,
+			result,
+		)
+	}
+}
