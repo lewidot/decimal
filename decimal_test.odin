@@ -439,3 +439,115 @@ compare_tests :: proc(t: ^testing.T) {
 		)
 	}
 }
+
+@(test)
+add_identity :: proc(t: ^testing.T) {
+	d := make_decimal(12345, 2)
+	zero := make_decimal(0, 0)
+	result := add(d, zero)
+	testing.expect(t, result.value == 12345)
+	testing.expect(t, result.scale == 2)
+}
+
+@(test)
+subtract_from_self :: proc(t: ^testing.T) {
+	d := make_decimal(12345, 2)
+	result := subtract(d, d)
+	testing.expect(t, result.value == 0)
+	testing.expect(t, result.scale == 2)
+}
+
+@(test)
+multiply_identity :: proc(t: ^testing.T) {
+	d := make_decimal(12345, 2)
+	one := make_decimal(1, 0)
+	result := multiply(d, one)
+	testing.expect(t, result.value == 12345)
+	testing.expect(t, result.scale == 2)
+}
+
+@(test)
+multiply_scale_accumulation :: proc(t: ^testing.T) {
+	a := make_decimal(150, 2) // 1.50
+	b := make_decimal(200, 2) // 2.00
+	c := make_decimal(300, 2) // 3.00
+
+	r1 := multiply(a, b) // 3.0000 = {30000, 4}
+	testing.expect(t, r1.scale == 4)
+
+	r2 := multiply(r1, c) // 9.000000 = {9000000, 6}
+	testing.expect(t, r2.scale == 6)
+	testing.expect(t, to_f64(r2) == 9.0)
+
+	// normalize brings it back down
+	n := normalize(r2)
+	testing.expect(t, n.value == 9)
+	testing.expect(t, n.scale == 0)
+}
+
+@(test)
+chained_operations :: proc(t: ^testing.T) {
+	// (10.50 + 3.25) * 2 = 27.50
+	a := make_decimal(1050, 2)
+	b := make_decimal(325, 2)
+	c := make_decimal(2, 0)
+
+	sum := add(a, b)
+	result := multiply(sum, c)
+
+	testing.expect(t, result.value == 2750)
+	testing.expect(t, result.scale == 2)
+}
+
+@(test)
+financial_calculation :: proc(t: ^testing.T) {
+	// Price: £19.99, Quantity: 3, VAT: 20%
+	price := make_decimal(1999, 2) // 19.99
+	qty := make_decimal(3, 0) // 3
+
+	subtotal := multiply(price, qty) // 59.97 = {5997, 2}
+	testing.expect(t, subtotal.value == 5997)
+	testing.expect(t, subtotal.scale == 2)
+
+	// VAT = subtotal * 20 / 100
+	vat := multiply(subtotal, make_decimal(20, 0)) // {119940, 2}
+	vat = divide(vat, make_decimal(100, 0), 2) // {1199, 2} = 11.99
+	testing.expect(t, vat.value == 1199)
+
+	total := add(subtotal, vat) // 71.96 = {7196, 2}
+	testing.expect(t, total.value == 7196)
+	testing.expect(t, total.scale == 2)
+}
+
+@(test)
+to_string_to_f64_consistency :: proc(t: ^testing.T) {
+	Test_Case :: struct {
+		value:        i64,
+		scale:        i8,
+		expected_str: string,
+		expected_f64: f64,
+	}
+
+	test_cases := []Test_Case {
+		{1, 1, "0.1", 0.1},
+		{100, 2, "1.00", 1.0},
+		{12345, 3, "12.345", 12.345},
+		{-500, 2, "-5.00", -5.0},
+	}
+
+	for tc in test_cases {
+		d := make_decimal(tc.value, tc.scale)
+		str := to_string(d)
+		defer delete(str)
+		f := to_f64(d)
+
+		testing.expectf(
+			t,
+			str == tc.expected_str,
+			"to_string: expected '%s', got '%s'",
+			tc.expected_str,
+			str,
+		)
+		testing.expectf(t, f == tc.expected_f64, "to_f64: expected %v, got %v", tc.expected_f64, f)
+	}
+}
