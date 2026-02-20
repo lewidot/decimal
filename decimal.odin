@@ -42,8 +42,7 @@ from_i64 :: proc(value: i64) -> Decimal {
 //
 // value / 10^scale
 to_f64 :: proc(d: Decimal) -> f64 {
-	divisor := math.pow(10, f64(d.scale))
-	return f64(d.value) / divisor
+	return f64(d.value) / f64(pow10(d.scale))
 }
 
 // Convert Decimal to string.
