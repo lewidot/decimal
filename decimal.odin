@@ -29,6 +29,7 @@ Decimal :: struct {
 
 // Create a new Decimal.
 make_decimal :: proc(value: i64, scale: i8) -> Decimal {
+	assert(scale >= 0, "decimal: negative scale not supported")
 	return Decimal{value, scale}
 }
 
@@ -149,6 +150,23 @@ divide :: proc(
 	}
 
 	return make_decimal(quotient, precision)
+}
+
+// Normalize a Decimal by removing trailing zeros.
+//
+// This reduces the scale to the minimum needed to represent the value,
+// e.g. 1.2500 (value=12500, scale=4) becomes 1.25 (value=125, scale=2).
+normalize :: proc(d: Decimal) -> Decimal {
+	if d.value == 0 {
+		return Decimal{0, 0}
+	}
+	v := d.value
+	s := d.scale
+	for s > 0 && v % 10 == 0 {
+		v /= 10
+		s -= 1
+	}
+	return Decimal{v, s}
 }
 
 // Calculate 10^n using integer multiplication.

@@ -320,3 +320,36 @@ from_i64_tests :: proc(t: ^testing.T) {
 		)
 	}
 }
+
+@(test)
+normalize_tests :: proc(t: ^testing.T) {
+	Test_Case :: struct {
+		name:           string,
+		value:          i64,
+		scale:          i8,
+		expected_value: i64,
+		expected_scale: i8,
+	}
+
+	test_cases := []Test_Case{
+		{"no_trailing_zeros", 12345, 2, 12345, 2},
+		{"trailing_zeros", 12500, 4, 125, 2},
+		{"all_trailing_zeros", 100, 2, 1, 0},
+		{"zero_value", 0, 5, 0, 0},
+		{"zero_no_scale", 0, 0, 0, 0},
+		{"negative_trailing", -4500, 3, -45, 1},
+		{"whole_number", 42, 0, 42, 0},
+		{"single_trailing", 120, 1, 12, 0},
+	}
+
+	for tc in test_cases {
+		d := make_decimal(tc.value, tc.scale)
+		result := normalize(d)
+		testing.expectf(t, result.value == tc.expected_value,
+			"[%s] expected value %v, got %v",
+			tc.name, tc.expected_value, result.value)
+		testing.expectf(t, result.scale == tc.expected_scale,
+			"[%s] expected scale %v, got %v",
+			tc.name, tc.expected_scale, result.scale)
+	}
+}
