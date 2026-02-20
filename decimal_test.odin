@@ -331,7 +331,7 @@ normalize_tests :: proc(t: ^testing.T) {
 		expected_scale: i8,
 	}
 
-	test_cases := []Test_Case{
+	test_cases := []Test_Case {
 		{"no_trailing_zeros", 12345, 2, 12345, 2},
 		{"trailing_zeros", 12500, 4, 125, 2},
 		{"all_trailing_zeros", 100, 2, 1, 0},
@@ -345,11 +345,58 @@ normalize_tests :: proc(t: ^testing.T) {
 	for tc in test_cases {
 		d := make_decimal(tc.value, tc.scale)
 		result := normalize(d)
-		testing.expectf(t, result.value == tc.expected_value,
+		testing.expectf(
+			t,
+			result.value == tc.expected_value,
 			"[%s] expected value %v, got %v",
-			tc.name, tc.expected_value, result.value)
-		testing.expectf(t, result.scale == tc.expected_scale,
+			tc.name,
+			tc.expected_value,
+			result.value,
+		)
+		testing.expectf(
+			t,
+			result.scale == tc.expected_scale,
 			"[%s] expected scale %v, got %v",
-			tc.name, tc.expected_scale, result.scale)
+			tc.name,
+			tc.expected_scale,
+			result.scale,
+		)
+	}
+}
+
+@(test)
+equal_tests :: proc(t: ^testing.T) {
+	Test_Case :: struct {
+		name:     string,
+		d1_value: i64,
+		d1_scale: i8,
+		d2_value: i64,
+		d2_scale: i8,
+		expected: bool,
+	}
+
+	test_cases := []Test_Case {
+		{"same_representation", 12345, 2, 12345, 2, true},
+		{"different_scale_equal", 100, 2, 1, 0, true},
+		{"different_scale_equal_2", 1250, 3, 125, 2, true},
+		{"not_equal", 12345, 2, 12346, 2, true == false},
+		{"different_scale_not_equal", 100, 2, 2, 0, false},
+		{"zero_variants", 0, 0, 0, 3, true},
+		{"positive_vs_negative", 100, 2, -100, 2, false},
+		{"negative_equal", -125, 1, -1250, 2, true},
+	}
+
+	for tc in test_cases {
+		d1 := make_decimal(tc.d1_value, tc.d1_scale)
+		d2 := make_decimal(tc.d2_value, tc.d2_scale)
+		result := equal(d1, d2)
+		testing.expectf(
+			t,
+			result == tc.expected,
+			"[%s] expected %v, got %v",
+			tc.name,
+			tc.expected,
+			result,
+		)
 	}
 }

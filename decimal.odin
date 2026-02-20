@@ -169,6 +169,12 @@ normalize :: proc(d: Decimal) -> Decimal {
 	return Decimal{v, s}
 }
 
+// Check equality of two Decimals.
+equal :: proc(d1, d2: Decimal) -> bool {
+	v1, v2, _ := align_scales(d1, d2)
+	return v1 == v2
+}
+
 // Calculate 10^n using integer multiplication.
 // Returns 10 to the power of n (e.g., pow10(3) = 1000).
 @(private)
