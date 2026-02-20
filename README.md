@@ -19,3 +19,28 @@ involves very large values or high-precision chained operations, validate that
 intermediate results stay within `i64` bounds.
 
 For arbitrary-precision arithmetic, consider `core:math/big`.
+
+## Installation
+
+Clone or copy this package into your project:
+
+```sh
+git clone https://github.com/lewidot/decimal.git
+
+# or as a git submodule
+git submodule add https://github.com/lewidot/decimal.git
+```
+
+Then import it using a relative path:
+
+```odin
+package main
+
+import "decimal"
+
+main :: proc() {
+    price := decimal.make_decimal(1999, 2)  // 19.99
+    qty := decimal.make_decimal(3, 0)       // 3
+    total := decimal.multiply(price, qty)   // 59.97
+}
+```
