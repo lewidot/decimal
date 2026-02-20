@@ -13,7 +13,6 @@ package decimal
 
 import "base:intrinsics"
 import "core:fmt"
-import "core:math"
 import "core:strings"
 
 Rounding_Mode :: enum {
